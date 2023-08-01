@@ -1,38 +1,17 @@
-﻿using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
+﻿using Microsoft.AspNetCore.Mvc;
 using Project19.AuthContactApp;
-using Project19.ContextFolder;
-using Project19.Data;
 using Project19.Interfaces;
 using System.IdentityModel.Tokens.Jwt;
-using System.Linq;
-using System.Security.Claims;
-using System.Text;
 
 namespace Project19.Controllers
 {
     public class AccountController : Controller
     {
-        private readonly UserManager<User> _userManager;
-        private readonly SignInManager<User> _signInManager;
-        private readonly RoleManager<IdentityRole> _roleManager;
         private readonly IContactData _contactData;
 
-        public AccountController(UserManager<User> userManager,
-                                SignInManager<User> signInManager,
-                                RoleManager<IdentityRole> roleManager,
-                                IContactData contactData
+        public AccountController(IContactData contactData
                                 )
         {
-            _userManager = userManager;
-            _signInManager = signInManager;
-            _roleManager = roleManager;
             _contactData = contactData;
         }
 
