@@ -21,14 +21,16 @@ namespace Project19.Controllers
 
         /// <summary>
         /// Метод открытия нового View для добавления контакта
-        /// с атрибутом Authorize, который говорит, что
-        /// он будет доступен только для авторизованного 
-        /// пользователя
         /// </summary>
         /// <returns></returns>
         [HttpGet]
         public IActionResult AddContact()
         {
+            if (!contactData.CheckToken(HttpContext))
+            {
+                LogoutMethod();
+                return RedirectToAction("Login", "Account");
+            }
             CheckCookieMethod();
             return View();
         }
@@ -52,6 +54,12 @@ namespace Project19.Controllers
         string fatherName, string telephoneNumber, string residenceAdress,
         string description)
         {
+            if (!contactData.CheckToken(HttpContext))
+            {
+                LogoutMethod();
+                return RedirectToAction("Login", "Account");
+            }
+            contactData.CheckToken(HttpContext);
             var contact = new Contact()
             {
                 Surname = surname,
@@ -66,48 +74,69 @@ namespace Project19.Controllers
         }
 
         /// <summary>
-        /// Асинхронный метод, принимающий параметр int id. В методе 
-        /// происходит перебор базы данных по параметру ID. Если параметр 
-        /// совпадает, то данный контакт кешируется в статическую 
-        /// переменную concreteContact и возвращается ключевым словом
-        /// return для дальнейшего использования в качестве модели. 
-        /// При этом происходит сохранение текущего id.
+        /// Асинхронный метод, принимающий параметр int id.Происходит
+        /// проверка на наличие авторизации по роли админ для
+        /// изменения контакта. Далее происходит проверка куки методом
+        /// CheckCookieMethod и создание экземпляра контакта, который
+        /// определяется с помощью метода FindContactById, который
+        /// посылает запрос в API для поиска контакта и возврата
+        /// его экземпляра для дальнейшего использования во View.
+        /// Также, текущий изменяемый id записывается в файлы куки
+        /// для дальнейшего использования в методе 
+        /// ChangeDataFromViewField
         /// </summary>
         /// <param name="id"></param>
         /// <returns></returns>
         [HttpGet]
         public async Task<IActionResult> Change(int id)
         {
-            Contact concreteContact = await contactData.FindContactById(id, HttpContext);
-            if (concreteContact != null)
+            if (!contactData.CheckToken(HttpContext))
             {
-                CheckCookieMethod();
-                ViewBag.CurrentId = id;
-
-                var cookieOptions = new CookieOptions
+                LogoutMethod();
+                return RedirectToAction("Login", "Account");
+            }
+            if (!string.IsNullOrEmpty(Request.Cookies["RoleCookie"]))
+            {
+                string roleValue = Request.Cookies["RoleCookie"];
+                if (roleValue != "Admin")
                 {
-                    HttpOnly = true
-                };
+                    return Redirect("~/");
+                }
+                CheckCookieMethod();
+                Contact concreteContact = await contactData.FindContactById(id, HttpContext);
+                if (concreteContact != null)
+                {
+                    var cookieOptions = new CookieOptions
+                    {
+                        HttpOnly = true
+                    };
 
-                string currentId = id.ToString();
-                Response.Cookies.Append("CurrentId", currentId, cookieOptions);
-               
-                return View(concreteContact);
+                    string currentId = id.ToString();
+                    Response.Cookies.Append("CurrentId", currentId, cookieOptions);
+
+                    return View(concreteContact);
+                }
+                else
+                {
+                    return Redirect("~/");
+                }
             }
             else
             {
-                return Redirect("~/");
+                return RedirectToAction("Login", "Account");
             }
+            
         }
 
         /// <summary>
         /// Метод изменения контакта, принимающий в себя параметры 
-        /// строкового типа. В данном методе происходит перебор базы 
-        /// данных методом ChangeContact, где в результате совпадения 
-        /// параметра ID с текущим закешированным currentID произойдет замена
-        /// параметров текущего экземпляра Contact на указанные во 
-        /// View. По окончанию происходит сохранение данных методом
-        /// SaveChangesAsync и возврат на стартовую страницу.
+        /// строкового типа. В методе происходит проверка на наличие
+        /// файла куки с текущим id контакта. Данный id сохраняется
+        /// в int переменную currentId посредством приведения из 
+        /// строки с помощью метода Parse. Далее происходит запуск
+        /// метода ChangeContact, в который передаются измененные
+        /// значения контакта. Данный метод передаёт значения в API.
+        /// По окончанию происходит редирект на стартовую страницу.
         /// </summary>
         /// <param name="surname"></param>
         /// <param name="name"></param>
@@ -121,6 +150,11 @@ namespace Project19.Controllers
         string fatherName, string telephoneNumber, string residenceAdress,
         string description)
         {
+            if (!contactData.CheckToken(HttpContext))
+            {
+                LogoutMethod();
+                return RedirectToAction("Login", "Account");
+            }
             if (!string.IsNullOrEmpty(Request.Cookies["CurrentId"]))
             {
                 string currentIdStr = Request.Cookies["CurrentId"];
@@ -137,17 +171,24 @@ namespace Project19.Controllers
 
         /// <summary>
         /// Метод, возвращающий экземпляр класса Contact с указанным id, 
-        /// данный метод принимает в себя int id. В методе происходит
-        /// перебор БД на сравнивнение параметра ID с принимаемым id. 
-        /// При совпадении происходит кеширование экземпляра Contact 
-        /// в статическую переменную concreteContact и возвращение 
-        /// этого экземпляра для использования в качестве модели.
+        /// данный метод принимает в себя int id. В методе происходит 
+        /// созадние экземпляра Contact, в который записывается
+        /// результат отработки метода FindContactById, принимающий id
+        /// контакта. Метод FindContactById создает запрос в API и 
+        /// принимает ответ в виде экземпляра контакта. По окончанию
+        /// происходит вывод экземпляра во View модель и открытие данного
+        /// View.
         /// </summary>
         /// <param name="id"></param>
         /// <returns></returns>
         [HttpGet]
         public async Task<IActionResult> Details(int id)
         {
+            if (!contactData.CheckToken(HttpContext))
+            {
+                LogoutMethod();
+                return RedirectToAction("Login", "Account");
+            }
             Contact concreteContact = await contactData.FindContactById(id, HttpContext);
             if (concreteContact != null)
             {
@@ -162,27 +203,36 @@ namespace Project19.Controllers
         }
 
         /// <summary>
-        /// Асинхронный метод, принимающий переменную int id.
+        /// Метод, принимающий переменную int id.
         /// Атрибут ActionName("Delete") говорит о том, что
         /// данный метод будет вызван в результате action метода
         /// "Delete" в представлении Index.cshtml.
-        /// В данном методе, происходит перебор
-        /// базы данных на условие совпадения совпадения 
-        /// параметра ID контакта с принимаемым id, после чего
-        /// происходит удаление элемента базы данных, сохранение
-        /// данных методом SaveChangesAsync и возврат на
-        /// стартовую страницу.
-        /// в котором происходит 
+        /// Данный метод обращается к методу DeleteContact и передает
+        /// в него id контакта для удаления. DeleteContact отправляет
+        /// запрос в API на удаление контакта.
         /// </summary>
         /// <param name="id"></param>
         /// <returns></returns>
         [HttpPost, ActionName("Delete")]
         public IActionResult DeleteConfirmed(int id)
         {
+            if (!contactData.CheckToken(HttpContext))
+            {
+                LogoutMethod();
+                return RedirectToAction("Login", "Account");
+            }
             contactData.DeleteContact(id, HttpContext);
             return Redirect("~/");
         }
 
+        /// <summary>
+        /// Метод проверки наличия куки с именем пользователя, ролью и
+        /// токеном. Если куки существуют и не равны нулю или пустой 
+        /// строке, то происходит их запись в строковые переменные.
+        /// Если строка токена не равна нулю или пустой строке, то
+        /// происходит запись значение IsAuth во ViewBag равное true.
+        /// Значение имени и роли также записываются во ViewBag.
+        /// </summary>
         private void CheckCookieMethod()
         {
             if (!string.IsNullOrEmpty(Request.Cookies["UserNameCookie"]) &&
@@ -203,6 +253,22 @@ namespace Project19.Controllers
                 ViewBag.UserName = nameValue;
                 ViewBag.RoleName = roleValue;
             }
+        }
+
+        /// Метод выхода из учетной записи. В данном
+        /// методе происходит перезапись текущих куки на новые
+        /// значения, которые равны пустым строкам (т.е. обнуление
+        /// аутентификационных данных пользователя, хранящихся в куки).
+        public void LogoutMethod()
+        {
+            var cookieOptions = new CookieOptions
+            {
+                HttpOnly = true
+            };
+
+            Response.Cookies.Append("AuthToken", string.Empty, cookieOptions);
+            Response.Cookies.Append("RoleCookie", string.Empty, cookieOptions);
+            Response.Cookies.Append("UserNameCookie", string.Empty, cookieOptions);
         }
     }
 }

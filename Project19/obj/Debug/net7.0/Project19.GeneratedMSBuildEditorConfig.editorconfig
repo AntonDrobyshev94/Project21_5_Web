@@ -16,12 +16,12 @@ build_property.GenerateRazorMetadataSourceChecksumAttributes =
 build_property.MSBuildProjectDirectory = F:\C#\Project21WebTest\Project21Web\Project19
 build_property._RazorSourceGeneratorDebug = 
 
-[F:/C\#/Project21WebTest/Project21Web/Project19/Views/Account/AddRole.cshtml]
-build_metadata.AdditionalFiles.TargetPath = Vmlld3NcQWNjb3VudFxBZGRSb2xlLmNzaHRtbA==
-build_metadata.AdditionalFiles.CssScope = 
-
 [F:/C\#/Project21WebTest/Project21Web/Project19/Views/Account/AdminRegister.cshtml]
 build_metadata.AdditionalFiles.TargetPath = Vmlld3NcQWNjb3VudFxBZG1pblJlZ2lzdGVyLmNzaHRtbA==
+build_metadata.AdditionalFiles.CssScope = 
+
+[F:/C\#/Project21WebTest/Project21Web/Project19/Views/Account/AdminWindow.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcQWNjb3VudFxBZG1pbldpbmRvdy5jc2h0bWw=
 build_metadata.AdditionalFiles.CssScope = 
 
 [F:/C\#/Project21WebTest/Project21Web/Project19/Views/Account/Login.cshtml]

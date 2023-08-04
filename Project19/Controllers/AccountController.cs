@@ -9,27 +9,33 @@ namespace Project19.Controllers
     {
         private readonly IContactData _contactData;
 
-        public AccountController(IContactData contactData
-                                )
+        public AccountController(IContactData contactData)
         {
             _contactData = contactData;
         }
 
         /// <summary>
         /// Асинхронный Get запрос на открытие страницы администратора. 
-        /// В результате запроса происходит формирование коллекции IList 
-        /// string,в которую происходит запись ролей текущего пользователя.
-        /// Полученная переменная записывается в ViewBag.Role для
-        /// использования в представлении. Также происходит формирование
-        /// коллекций IEnumerable имён всех пользователей и имён
-        /// пользователей с правами администратора, которые записываются
-        /// во ViewBag.
+        /// В результате запроса происходит проверка на наличие роли
+        /// администратора в куки. Дале происходит запуск методов
+        /// получения текущих ролей пользователя, получения списка 
+        /// всех пользователей и списка всех администраторов в виде
+        /// коллекции List. Результаты выполнения записываются во ViewBag
+        /// и используются в cshtml представлении. Далее происходит
+        /// отработка метода проверки текущих куки и по окончанию 
+        /// ключевым словом return происходит переход на модель.
         /// </summary>
         /// <returns></returns>
         [HttpGet]
-        public async Task<IActionResult> AddRole()
+        public async Task<IActionResult> AdminWindow()
         {
-            if(!string.IsNullOrEmpty(Request.Cookies["RoleCookie"]))
+            if (!_contactData.CheckToken(HttpContext))
+            {
+                LogoutMethod();
+                return RedirectToAction("Login", "Account");
+            }
+
+            if (!string.IsNullOrEmpty(Request.Cookies["RoleCookie"]))
             {
                 string roleValue = Request.Cookies["RoleCookie"];
                 if (roleValue != "Admin")
@@ -58,18 +64,26 @@ namespace Project19.Controllers
 
         /// <summary>
         /// Асинхронный Post запрос создания новой роли, принимающий 
-        /// string переменную roleName (название роли). В блоке
-        /// try catch происходит проверка на пустую строку, а также
-        /// с помощью метода RoleExistAsync производится проверка
-        /// на совпадение указанной роли и имеющихся ролей.
-        /// В экземпляры TempData записываются сообщения о результате
-        /// выполнения операции.
+        /// string переменную roleName (название роли). С помощью 
+        /// метода RoleCreate происходит запрос в API на создание
+        /// новой роли. В результате в переменную createRoleResponse
+        /// записывается ответ об успехе в создании роли. С помощью 
+        /// операторов if/else происходит проверка 
+        /// ответа createRoleResponse посредством проверки содержимого 
+        /// этого ответа (сверяется с указанной строкой). Если ответ 
+        /// содержит указанный в условии порядок слов, то
+        /// происходит запись сообщений о результатах ввода в 
+        /// экземпляр TempData. 
         /// </summary>
         /// <param name="roleName"></param>
         /// <returns></returns>
-        [HttpPost]
         public async Task<IActionResult> CreateNewRole(string roleNameString)
         {
+            if (!_contactData.CheckToken(HttpContext))
+            {
+                LogoutMethod();
+                return RedirectToAction("Login", "Account");
+            }
             bool isCreate = false;
             string createRoleResponse = string.Empty;
             try
@@ -102,26 +116,32 @@ namespace Project19.Controllers
                 isCreate = false;
             }
             TempData["IsCreate"] = isCreate;
-            return RedirectToAction("AddRole", "Account");
+            return RedirectToAction("AdminWindow", "Account");
         }
 
         /// <summary>
-        /// Асинхронный post запрос добавления роли указанному
+        /// Асинхронный Post запрос добавления роли указанному
         /// пользователю, принимающий переменные строкового типа
         /// roleName и userName (название роли и имя пользователя).
-        /// Происходят проверки на наличие указанной роли и имени 
-        /// пользователя в существующей базе данных (c помощью 
-        /// методов RoleExistAsync и FindByNameAsync).
-        /// Добавление роли осуществляется методом AddToRoleAsync.
-        /// В экземпляры TempData записываются сообщения о 
-        /// результатах выполнения операций.
+        /// С помощью метода AddRoleToUser происходит запрос в API
+        /// на добавление ролей пользователю, в результате в переменную
+        /// addRoleTouserResponse записывается ответ об успехе в 
+        /// добавлении роли. С помощью операторов if/else происходит 
+        /// проверка ответа addRoleToUserResponse посредством проверки 
+        /// содержимого этого ответа методом Contains . Если ответ 
+        /// содержит указанный в условиях порядок слов, то происходит 
+        /// запись сообщений о результатах ввода в экземпляры TempData.
         /// </summary>
         /// <param name="roleName"></param>
         /// <param name="userName"></param>
         /// <returns></returns>
-        [HttpPost]
         public async Task<IActionResult> AddUserRole(string roleNameString, string userNameString)
         {
+            if (!_contactData.CheckToken(HttpContext))
+            {
+                LogoutMethod();
+                return RedirectToAction("Login", "Account");
+            }
             string addRoleToUserResponse = string.Empty;
             bool isRoleAvailable = false;
             bool isUserAvailable = false;
@@ -174,26 +194,32 @@ namespace Project19.Controllers
             }
             TempData["isRoleAvailable"] = isRoleAvailable;
             TempData["isUserAvailable"] = isUserAvailable;
-            return RedirectToAction("AddRole", "Account");
+            return RedirectToAction("AdminWindow", "Account");
         }
 
         /// <summary>
-        /// Асинхронный Post запрос на удаление роли у указанного
+        /// Асинхронный запрос на удаление роли у указанного
         /// пользователя, принимающий переменные строкового типа
         /// roleName и userName (название роли и имя пользователя).
-        /// Происходят проверки на наличие указанной роли и имени 
-        /// пользователя в существующей базе данных (c помощью 
-        /// методов RoleExistAsync и FindByNameAsync).
-        /// Удаление производится методом RemoveFromRoleAsync.
-        /// В экземпляры TempData записываются сообщения о 
-        /// результатах выполнения операций.
+        /// С помощью метода RemoveRoleUser происходит запрос в API
+        /// на удаление ролей у пользователя, в результате в переменную
+        /// removeUserRoleResponse записывается ответ об успехе в 
+        /// удалении роли. С помощью операторов if/else происходит 
+        /// проверка ответа removeUserRoleResponse посредством проверки 
+        /// содержимого этого ответа методом Contains. Если ответ 
+        /// содержит указанный в условиях порядок слов, то происходит 
+        /// запись сообщений о результатах ввода в экземпляры TempData.
         /// </summary>
         /// <param name="roleName"></param>
         /// <param name="userName"></param>
         /// <returns></returns>
-        [HttpPost]
         public async Task<IActionResult> RemoveUserRole(string roleNameString, string userNameString)
         {
+            if (!_contactData.CheckToken(HttpContext))
+            {
+                LogoutMethod();
+                return RedirectToAction("Login", "Account");
+            }
             string removeUserRoleResponse = string.Empty;
             bool isRoleAvailable = false;
             bool isUserAvailable = false;
@@ -254,25 +280,30 @@ namespace Project19.Controllers
             TempData["isRoleAvailable"] = isRoleAvailable;
             TempData["isUserAvailable"] = isUserAvailable;
             TempData["isUserHaveRole"] = isUserHaveRole;
-            return RedirectToAction("AddRole", "Account");
+            return RedirectToAction("AdminWindow", "Account");
         }
 
         /// <summary>
-        /// Асинхронный Post запрос на удаления пользователя, 
+        /// Асинхронный запрос на удаление пользователя, 
         /// принимающий переменную userName строкового типа. 
-        /// Происходит проверка на наличие указанного имени 
-        /// пользователя в существующей базе данных (c помощью 
-        /// метода FindByNameAsync). Удаление происходит
-        /// при помощи метода DeleteAsync с указанием 
-        /// полученного в результате метода FindByNameAsync
-        /// экземпляра. В экземпляры TempData записываются 
-        /// сообщения о результате выполнения операции.
+        /// С помощью метода UserRemove происходит запрос в API
+        /// на удаление пользователя, в результате в переменную
+        /// removeUserResponse записывается ответ об успехе в 
+        /// удалении пользователя. С помощью операторов if/else происходит 
+        /// проверка ответа removeUserResponse посредством проверки 
+        /// содержимого этого ответа методом Contains. Если ответ 
+        /// содержит указанный в условиях порядок слов, то происходит 
+        /// запись сообщений о результатах ввода в экземпляры TempData.
         /// </summary>
         /// <param name="userName"></param>
         /// <returns></returns>
-        [HttpPost]
         public async Task<IActionResult> RemoveUser(string userNameString)
         {
+            if (!_contactData.CheckToken(HttpContext))
+            {
+                LogoutMethod();
+                return RedirectToAction("Login", "Account");
+            }
             string removeUserResponse = string.Empty;
             bool isRemoveUser;
             if (!string.IsNullOrEmpty(userNameString))
@@ -305,7 +336,7 @@ namespace Project19.Controllers
                 isRemoveUser = false;
             }
             TempData["IsRemoveUser"] = isRemoveUser;
-            return RedirectToAction("AddRole", "Account");
+            return RedirectToAction("AdminWindow", "Account");
         }
 
         /// <summary>
@@ -318,14 +349,27 @@ namespace Project19.Controllers
         /// <param name="returnUrl"></param>
         /// <returns></returns>
         [HttpGet]
-        public IActionResult Login(string returnUrl)
+        public IActionResult Login()
         {
-            return View(new UserLogin()
-            {
-                ReturnUrl = returnUrl
-            });
+            return View();
         }
 
+        /// <summary>
+        /// Асинхронный метод, принимающий модель UserLogin,
+        /// реализованную отдельным классом и возвращающий результат
+        /// выполнения данной модели. В методе происходит проверка
+        /// принимаемой модели на валидность и если модель валидна,
+        /// то создается с помощью метода IsLogin создается запрос
+        /// в API для проверки модели и получения токена в случае
+        /// успешной авторизации. Если полученный токен равен
+        /// пустой строке, то произойдет ошибка авторизации. Если
+        /// не равен, то происходит проверка содержимого токена 
+        /// на наличие Claims Администратора и имени пользователя,
+        /// которые записываются в файлы Куки для дальнейшего
+        /// использования.
+        /// </summary>
+        /// <param name="model"></param>
+        /// <returns></returns>
         public async Task<IActionResult> Login(UserLogin model)
         {
             if (ModelState.IsValid)
@@ -347,7 +391,6 @@ namespace Project19.Controllers
                     token = _contactData.IsLogin(userLogin);
                     if (token != string.Empty)
                     {
-                        // Устанавливаем куки с именем "AuthToken" и значением токена
                         Response.Cookies.Append("AuthToken", token, cookieOptions);
                         var tokenHandler = new JwtSecurityTokenHandler();
                         var jwtToken = tokenHandler.ReadJwtToken(token);
@@ -373,7 +416,6 @@ namespace Project19.Controllers
                                 Response.Cookies.Append("UserNameCookie", item.Value, cookieOptions);
                             }
                         }
-
                         return RedirectToAction("Index", "MyDefault");
                     }
                     else
@@ -401,15 +443,17 @@ namespace Project19.Controllers
 
         /// <summary>
         /// Асинхронный Post запрос, принимающий модель регистрации,
-        /// проверяющий правильность этой модели и на ее основе 
-        /// создающий нового пользователя и добавляющий в базу 
-        /// данных. Далее, производит вход и переадресацию на
-        /// страницу Index. Если модель не корректная, то выдается
-        /// ошибка.
+        /// проверяющий правильность этой модели и на ее основе
+        /// с помощью метода IsRegiseter происходит запрос в API
+        /// на регистрацию нового пользователя. Если полученный 
+        /// токен равен пустой строке, то произойдет ошибка 
+        /// авторизации. Если не равен, то происходит запись токена,
+        /// имени пользователя и роли User  в куки для дальнейшего
+        /// использования. В конце происходит редирект на главную
+        /// страницу.
         /// </summary>
         /// <param name="model"></param>
         /// <returns></returns>
-        [HttpPost, ValidateAntiForgeryToken]
         public async Task<IActionResult> Register(UserRegistration model)
         {
             if (ModelState.IsValid)
@@ -418,16 +462,17 @@ namespace Project19.Controllers
                 {
                     string token = string.Empty;
                     token = _contactData.IsRegister(model);
-                    var tokenHandler = new JwtSecurityTokenHandler();
-                    var jwtToken = tokenHandler.ReadJwtToken(token);
-
-                    var cookieOptions = new CookieOptions
-                    {
-                        HttpOnly = true
-                    };
 
                     if (token != string.Empty)
                     {
+                        var tokenHandler = new JwtSecurityTokenHandler();
+                        var jwtToken = tokenHandler.ReadJwtToken(token);
+
+                        var cookieOptions = new CookieOptions
+                        {
+                            HttpOnly = true
+                        };
+
                         Response.Cookies.Append("AuthToken", token, cookieOptions);
                         Response.Cookies.Append("RoleCookie", "User", cookieOptions);
 
@@ -440,11 +485,15 @@ namespace Project19.Controllers
                         }
                         return RedirectToAction("Index", "MyDefault");
                     }
-                    else//иначе
+                    else
                     {
                         ModelState.AddModelError("", "Ошибка регистрации");
                     }
                 }
+            }
+            else
+            {
+                ModelState.AddModelError("", "Пароли не совпадают или ошибка формата");
             }
             return View(model);
         }
@@ -457,23 +506,38 @@ namespace Project19.Controllers
         [HttpGet]
         public IActionResult AdminRegister()
         {
+            if (!_contactData.CheckToken(HttpContext))
+            {
+                LogoutMethod();
+                return RedirectToAction("Login", "Account");
+            }
             CheckCookieMethod();
             return View(new UserRegistration());
         }
 
         /// <summary>
-        /// Асинхронный Post запрос, принимающий модель регистрации,
+        /// Асинхронный метод, принимающий модель регистрации,
         /// проверяющий правильность этой модели и на ее основе 
         /// создающий нового пользователя и добавляющий в базу 
         /// данных. Если модель не корректная, то выдается
         /// сообщение об ошибке. Если действие выполнено, то 
         /// выдается сообщение об успешном выполнении.
+        /// Далее происходит отработка метода AdministrationRegister,
+        /// который принимает в себя модель регистрации 
+        /// UserRegistration и текущий Http-контекст. Если результат
+        /// отработки метода - true (т.е. аккаунт зарегистрирован),
+        /// то выдает сообщение об успешной регистрации. При false -
+        /// выдает ошибку.
         /// </summary>
         /// <param name="model"></param>
         /// <returns></returns>
-        [HttpPost, ValidateAntiForgeryToken]
         public async Task<IActionResult> AdminRegister(UserRegistration model)
         {
+            if (!_contactData.CheckToken(HttpContext))
+            {
+                LogoutMethod();
+                return RedirectToAction("Login", "Account");
+            }
             if (!string.IsNullOrEmpty(Request.Cookies["RoleCookie"]))
             {
                 string roleValue = Request.Cookies["RoleCookie"];
@@ -482,13 +546,13 @@ namespace Project19.Controllers
                     return RedirectToAction("Login", "Account");
                 }
             }
-
+            CheckCookieMethod();
             bool isSucceed = false;
             if (ModelState.IsValid)
             {
                 if (model.LoginProp != null)
                 {
-                    isSucceed = _contactData.AdministationRegister(model, HttpContext);
+                    isSucceed = _contactData.AdministrationRegister(model);
 
                     if (isSucceed)
                     {
@@ -503,6 +567,7 @@ namespace Project19.Controllers
             else
             {
                 isSucceed = false;
+                ModelState.AddModelError("", "Пароли не совпадают или неверный формат");
             }
             ViewBag.IsSuccess = isSucceed;
             TempData["UserCreateMessage"] = isSucceed ? "Пользовательский аккаунт создан" : "Ошибка при создании";
@@ -510,24 +575,23 @@ namespace Project19.Controllers
         }
 
         /// <summary>
-        /// Асинхронный Post запрос выхода из учетной записи.
+        /// Метод, осуществляющий переход на страницу входа Account
+        /// Login.
         /// </summary>
         /// <returns></returns>
-        [HttpPost, ValidateAntiForgeryToken]
-        public async Task<IActionResult> Logout()
+        public IActionResult Logout()
         {
-            var cookieOptions = new CookieOptions
-            {
-                HttpOnly = true
-            };
-
-            Response.Cookies.Append("AuthToken", string.Empty, cookieOptions);
-            Response.Cookies.Append("RoleCookie", string.Empty, cookieOptions);
-            Response.Cookies.Append("UserNameCookie", string.Empty, cookieOptions);
+            LogoutMethod();
 
             return RedirectToAction("Login", "Account");
         }
 
+        /// <summary>
+        /// Метод проверки куки, в котором происходит проверка наличия
+        /// куки с именем пользователя, ролью и токеном. После проверки
+        /// куки сохраняются в строковые переменные, а далее сохраняются
+        /// во ViewBag для дальнейшего использования во View модели.
+        /// </summary>
         private void CheckCookieMethod()
         {
             if (!string.IsNullOrEmpty(Request.Cookies["UserNameCookie"]) &&
@@ -548,6 +612,22 @@ namespace Project19.Controllers
                 ViewBag.UserName = nameValue;
                 ViewBag.RoleName = roleValue;
             }
+        }
+
+        /// Метод выхода из учетной записи. В данном
+        /// методе происходит перезапись текущих куки на новые
+        /// значения, которые равны пустым строкам (т.е. обнуление
+        /// аутентификационных данных пользователя, хранящихся в куки).
+        public void LogoutMethod()
+        {
+            var cookieOptions = new CookieOptions
+            {
+                HttpOnly = true
+            };
+
+            Response.Cookies.Append("AuthToken", string.Empty, cookieOptions);
+            Response.Cookies.Append("RoleCookie", string.Empty, cookieOptions);
+            Response.Cookies.Append("UserNameCookie", string.Empty, cookieOptions);
         }
     }
 }

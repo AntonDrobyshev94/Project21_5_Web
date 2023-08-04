@@ -7,6 +7,7 @@ namespace Project19.Interfaces
 {
     public interface IContactData
     {
+        bool CheckToken(HttpContext httpContext);
         IEnumerable<Contact> GetContacts(HttpContext httpContext);
         void AddContacts(Contact contact, HttpContext httpContext);
         void DeleteContact(int id, HttpContext httpContext);
@@ -17,7 +18,7 @@ namespace Project19.Interfaces
             ,HttpContext httpContext);
         string IsLogin(UserLoginProp model);
         string IsRegister(UserRegistration model);
-        bool AdministationRegister(UserRegistration model, HttpContext httpContext);
+        bool AdministrationRegister(UserRegistration model);
         string RoleCreate(RoleModel model, HttpContext httpContext);
         string AddRoleToUser(RoleModel model, HttpContext httpContext);
         string RemoveRoleUser(RoleModel model, HttpContext httpContext);
